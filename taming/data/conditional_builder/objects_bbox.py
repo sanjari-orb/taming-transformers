@@ -43,10 +43,13 @@ class ObjectsBoundingBoxConditionalBuilder(ObjectsCenterPointsConditionalBuilder
              line_width: int = 3, font_size: Optional[int] = None) -> Tensor:
         plot = pil_image.new('RGB', figure_size, WHITE)
         draw = pil_img_draw.Draw(plot)
-        font = ImageFont.truetype(
-            "/usr/share/fonts/truetype/lato/Lato-Regular.ttf",
-            size=get_plot_font_size(font_size, figure_size)
-        )
+        try:
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/lato/Lato-Regular.ttf",
+                size=get_plot_font_size(font_size, figure_size)
+            )
+        except Exception as e:
+            font = ImageFont.load_default()
         width, height = plot.size
         description, crop_coordinates = self.inverse_build(conditional)
         for (representation, bbox), color in zip(description, cycle(COLOR_PALETTE)):

@@ -14,7 +14,8 @@ from taming.data.helper_types import BoundingBox, CropMethodType, Image, Annotat
 from taming.data.image_transforms import CenterCropReturnCoordinates, RandomCrop1dReturnCoordinates, \
     Random2dCropReturnCoordinates, RandomHorizontalFlipReturn, convert_pil_to_tensor
 
-
+def lam(x):
+    return x / 127.5 - 1.
 class AnnotatedObjectsDataset(Dataset):
     def __init__(self, data_path: Union[str, Path], split: SplitType, keys: List[str], target_image_size: int,
                  min_object_area: float, min_objects_per_image: int, max_objects_per_image: int,
@@ -90,7 +91,7 @@ class AnnotatedObjectsDataset(Dataset):
             raise ValueError(f'Received invalid crop method [{crop_method}].')
         if random_flip:
             transform_functions.append(RandomHorizontalFlipReturn())
-        transform_functions.append(transforms.Lambda(lambda x: x / 127.5 - 1.))
+        transform_functions.append(lam)
         return transform_functions
 
     def image_transform(self, x: Tensor) -> (Optional[BoundingBox], Optional[bool], Tensor):
