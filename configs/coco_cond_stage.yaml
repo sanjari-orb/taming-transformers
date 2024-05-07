@@ -47,3 +47,6 @@ data:
         crop_size: 256
         onehot_segmentation: true
         use_stuffthing: true
+lightning:
+  trainer:
+    max_epochs: 1

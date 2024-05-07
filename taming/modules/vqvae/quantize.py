@@ -231,7 +231,8 @@ class VectorQuantizer2(nn.Module):
 
         self.remap = remap
         if self.remap is not None:
-            self.register_buffer("used", torch.tensor(np.load(self.remap)))
+            self.used = torch.nn.Parameter(torch.tensor(np.load(self.remap)), requires_grad=False)
+            #self.register_buffer("used", torch.tensor(np.load(self.remap)))
             self.re_embed = self.used.shape[0]
             self.unknown_index = unknown_index # "random" or "extra" or integer
             if self.unknown_index == "extra":

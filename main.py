@@ -10,9 +10,11 @@ from pytorch_lightning import seed_everything
 from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, Callback, LearningRateMonitor
 from pytorch_lightning.utilities import rank_zero_only
-
+from pytorch_lightning.strategies import DDPStrategy 
+from taming.data.webclip import WebClipDataset
 from taming.data.utils import custom_collate
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def get_obj_from_str(string, reload=False):
     module, cls = string.rsplit(".", 1)
@@ -160,15 +162,26 @@ class DataModuleFromConfig(pl.LightningDataModule):
         if self.wrap:
             for k in self.datasets:
                 self.datasets[k] = WrappedDataset(self.datasets[k])
-
     def _train_dataloader(self):
-        return DataLoader(self.datasets["train"], batch_size=self.batch_size,
-                          num_workers=self.num_workers, shuffle=True, collate_fn=custom_collate)
+
+        return DataLoader(
+            WebClipDataset(
+                local='./train_data',
+                remote='s3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/train', 
+                batch_size=self.batch_size,
+            ),
+            batch_size=self.batch_size,
+            num_workers=self.num_workers, shuffle=True, collate_fn=custom_collate
+        )
 
     def _val_dataloader(self):
-        return DataLoader(self.datasets["validation"],
-                          batch_size=self.batch_size,
-                          num_workers=self.num_workers, collate_fn=custom_collate)
+        return DataLoader(
+            WebClipDataset(
+                local='./train_data',
+                remote='s3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/val', batch_size=self.batch_size),
+            batch_size=self.batch_size,
+            num_workers=self.num_workers, shuffle=True, collate_fn=custom_collate
+        )
 
     def _test_dataloader(self):
         return DataLoader(self.datasets["test"], batch_size=self.batch_size,
@@ -199,7 +212,7 @@ class SetupCallback(Callback):
                            os.path.join(self.cfgdir, "{}-project.yaml".format(self.now)))
 
             print("Lightning config")
-            # print(self.lightning_config.pretty())
+            print(self.lightning_config)
             OmegaConf.save(OmegaConf.create({"lightning": self.lightning_config}),
                            os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))
 
@@ -233,6 +246,7 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def _wandb(self, pl_module, images, batch_idx, split):
+        return 
         raise ValueError("No way wandb")
         grids = dict()
         for k in images:
@@ -421,6 +435,8 @@ if __name__ == "__main__":
         # merge trainer cli with config
         trainer_config = lightning_config.get("trainer", OmegaConf.create())
         # default to ddp
+        trainer_config["accelerator"] = "gpu"
+        #trainer_config["strategy"] = "ddp"
         trainer_config["distributed_backend"] = "ddp"
         for k in nondefault_trainer_args(opt):
             trainer_config[k] = getattr(opt, k)
@@ -463,7 +479,7 @@ if __name__ == "__main__":
                 }
             },
         }
-        default_logger_cfg = default_logger_cfgs["testtube"]
+        default_logger_cfg = default_logger_cfgs["wandb"]
         if "logger" in lightning_config:
             logger_cfg = lightning_config.logger
         else:
@@ -492,7 +508,7 @@ if __name__ == "__main__":
         else:
             modelckpt_cfg = OmegaConf.create()
         modelckpt_cfg = OmegaConf.merge(default_modelckpt_cfg, modelckpt_cfg)
-        trainer_kwargs["checkpoint_callback"] = instantiate_from_config(modelckpt_cfg)
+        #trainer_kwargs["checkpoint_callback"] = instantiate_from_config(modelckpt_cfg)
 
         # add callback which sets up log directory
         default_callbacks_cfg = {
@@ -531,6 +547,7 @@ if __name__ == "__main__":
         callbacks_cfg = OmegaConf.merge(default_callbacks_cfg, callbacks_cfg)
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
+        trainer_kwargs["strategy"]=DDPStrategy(find_unused_parameters=True)
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
 
         # data
@@ -580,8 +597,6 @@ if __name__ == "__main__":
             except Exception:
                 melk()
                 raise
-        if not opt.no_test and not trainer.interrupted:
-            trainer.test(model, data)
     except Exception:
         if opt.debug and trainer.global_rank==0:
             try:

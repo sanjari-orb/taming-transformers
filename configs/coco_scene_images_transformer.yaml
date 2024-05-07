@@ -17,7 +17,7 @@ model:
     first_stage_config:
       target: taming.models.vqgan.VQModel
       params:
-        ckpt_path: /path/to/coco_epoch117.ckpt  # https://heibox.uni-heidelberg.de/f/78dea9589974474c97c1/
+        ckpt_path: /models/coco_epoch117.ckpt  # https://heibox.uni-heidelberg.de/f/78dea9589974474c97c1/
         embed_dim: 256
         n_embed: 8192
         ddconfig:
@@ -51,7 +51,7 @@ data:
     train:
       target: taming.data.annotated_objects_coco.AnnotatedObjectsCoco
       params:
-        data_path: data/coco_annotations_100  # substitute with path to full dataset
+        data_path: data/coco_dataset_complete  # substitute with path to full dataset
         split: train
         keys: [image, objects_bbox, file_name, annotations]
         no_tokens: 8192
@@ -66,7 +66,7 @@ data:
     validation:
       target: taming.data.annotated_objects_coco.AnnotatedObjectsCoco
       params:
-        data_path: data/coco_annotations_100  # substitute with path to full dataset
+        data_path: data/coco_dataset_complete  # substitute with path to full dataset
         split: validation
         keys: [image, objects_bbox, file_name, annotations]
         no_tokens: 8192

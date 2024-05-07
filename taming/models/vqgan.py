@@ -36,6 +36,7 @@ class VQModel(pl.LightningModule):
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
         self.image_key = image_key
         if colorize_nlabels is not None:
+            print('Got colorize_labels!!!!!')
             assert type(colorize_nlabels)==int
             self.register_buffer("colorize", torch.randn(3, colorize_nlabels, 1, 1))
         if monitor is not None:
@@ -69,20 +70,27 @@ class VQModel(pl.LightningModule):
         return dec
 
     def forward(self, input):
+        #print("Encoding..")
         quant, diff, _ = self.encode(input)
+        #print("Decoding..")
         dec = self.decode(quant)
+        #print("Returning..")
         return dec, diff
 
     def get_input(self, batch, k):
-        x = batch[k]
+        x = batch[k].clone()
         if len(x.shape) == 3:
-            x = x[..., None]
-        x = x.permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format)
+            x = x[..., None].clone()
+        x = x.clone().permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format)
         return x.float()
 
     def training_step(self, batch, batch_idx, optimizer_idx):
+        #print('Getting input')
         x = self.get_input(batch, self.image_key)
+        #print('Calling forward ')
         xrec, qloss = self(x)
+        #print('Exiting forward')
+        #print("optimizer_idx", optimizer_idx)
 
         if optimizer_idx == 0:
             # autoencode
@@ -112,9 +120,11 @@ class VQModel(pl.LightningModule):
         rec_loss = log_dict_ae["val/rec_loss"]
         self.log("val/rec_loss", rec_loss,
                    prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
+        '''
         self.log("val/aeloss", aeloss,
                    prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
         self.log_dict(log_dict_ae)
+        '''
         self.log_dict(log_dict_disc)
         return self.log_dict
 
@@ -150,16 +160,20 @@ class VQModel(pl.LightningModule):
     def to_rgb(self, x):
         assert self.image_key == "segmentation"
         if not hasattr(self, "colorize"):
-            self.register_buffer("colorize", torch.randn(3, x.shape[1], 1, 1).to(x))
+            print('Creating colorize in to_rgb()')
+            self.colorize = torch.nn.Parameter(torch.randn(3, x.shape[1], 1, 1).to(x.clone()), requires_grad=False)
+            #self.register_buffer("colorize", torch.randn(3, x.shape[1], 1, 1).to(x.clone()))
+            print('Created colorize in to_rgb()')
         x = F.conv2d(x, weight=self.colorize)
-        x = 2.*(x-x.min())/(x.max()-x.min()) - 1.
+        x = 2.*(x.clone()-x.min())/(x.max()-x.min()) - 1.
         return x
 
 
 class VQSegmentationModel(VQModel):
     def __init__(self, n_labels, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.register_buffer("colorize", torch.randn(3, n_labels, 1, 1))
+        self.colorize = torch.nn.Parameter(torch.randn(3, n_labels, 1, 1), requires_grad=False)
+        #self.register_buffer("colorize", torch.randn(3, n_labels, 1, 1))
 
     def configure_optimizers(self):
         lr = self.learning_rate
@@ -172,8 +186,11 @@ class VQSegmentationModel(VQModel):
         return opt_ae
 
     def training_step(self, batch, batch_idx):
+        #print("Getting input..")
         x = self.get_input(batch, self.image_key)
+        #print('Calling forward.. ')
         xrec, qloss = self(x)
+        #print("Getting loss..")
         aeloss, log_dict_ae = self.loss(qloss, x, xrec, split="train")
         self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=True)
         return aeloss
@@ -184,8 +201,11 @@ class VQSegmentationModel(VQModel):
         aeloss, log_dict_ae = self.loss(qloss, x, xrec, split="val")
         self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=True)
         total_loss = log_dict_ae["val/total_loss"]
+        '''
+
         self.log("val/total_loss", total_loss,
                  prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
+        '''
         return aeloss
 
     @torch.no_grad()
@@ -342,9 +362,11 @@ class GumbelVQ(VQModel):
         rec_loss = log_dict_ae["val/rec_loss"]
         self.log("val/rec_loss", rec_loss,
                  prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+        '''
         self.log("val/aeloss", aeloss,
                  prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
         self.log_dict(log_dict_ae)
+        '''
         self.log_dict(log_dict_disc)
         return self.log_dict
 
