@@ -157,21 +157,27 @@ class DataModuleFromConfig(pl.LightningDataModule):
 
     def prepare_data(self):
         for data_cfg in self.dataset_configs.values():
+            if data_cfg['target'] ==  'taming.data.webclip.WebClipDataset':
+                continue
             instantiate_from_config(data_cfg)
 
     def setup(self, stage=None):
         self.datasets = dict(
             (k, instantiate_from_config(self.dataset_configs[k]))
-            for k in self.dataset_configs)
+            for k in self.dataset_configs if 'webclip' not in self.dataset_configs[k]['target'])
         '''
         if self.wrap:
             for k in self.datasets:
                 self.datasets[k] = WrappedDataset(self.datasets[k])
         '''
     def _train_dataloader(self):
-        return DataLoader(self.datasets["train"], batch_size=self.batch_size,
+        conf = self.dataset_configs['train']
+        if conf['target'] == 'taming.data.webclip.WebClipDataset':
+            dataset = WebClipDataset(**conf['params'])
+        else:
+            dataset = self.datasets["train"]
+        return DataLoader(dataset, batch_size=self.batch_size,
                           num_workers=self.num_workers, collate_fn=custom_collate)
-
         return DataLoader(
             WebClipDataset(
                 local='./train_data',
@@ -183,8 +189,14 @@ class DataModuleFromConfig(pl.LightningDataModule):
         )
 
     def _val_dataloader(self):
-        return DataLoader(self.datasets["validation"], batch_size=self.batch_size,
+        conf = self.dataset_configs['validation']
+        if conf['target'] == 'taming.data.webclip.WebClipDataset':
+            dataset = WebClipDataset(**conf['params'])
+        else:
+            dataset = self.datasets["validation"]
+        return DataLoader(dataset, batch_size=self.batch_size,
                           num_workers=self.num_workers, collate_fn=custom_collate)
+
         return DataLoader(
             WebClipDataset(
                 local='./val_data',
@@ -192,6 +204,9 @@ class DataModuleFromConfig(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers, collate_fn=custom_collate
         )
+        dataset = instantiate_from_config(self.dataset_configs["validation"])
+        return DataLoader(dataset, batch_size=self.batch_size,
+                          num_workers=self.num_workers, collate_fn=custom_collate)
 
     def _test_dataloader(self):
         return DataLoader(self.datasets["test"], batch_size=self.batch_size,

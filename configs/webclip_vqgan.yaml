@@ -1,0 +1,47 @@
+model:
+  base_learning_rate: 4.5e-6
+  target: taming.models.vqgan.VQModel
+  params:
+    embed_dim: 256
+    n_embed: 1024
+    ddconfig:
+      double_z: False
+      z_channels: 256
+      resolution: 256
+      in_channels: 3
+      out_ch: 3
+      ch: 128
+      ch_mult: [ 1,1,2,2,4]  # num_down = len(ch_mult)-1
+      num_res_blocks: 2
+      attn_resolutions: [16]
+      dropout: 0.0
+
+    lossconfig:
+      target: taming.modules.losses.vqperceptual.VQLPIPSWithDiscriminator
+      params:
+        disc_conditional: False
+        disc_in_channels: 3
+        disc_start: 1000 
+        disc_weight: 0.8
+        codebook_weight: 1.0
+
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 24 
+    num_workers: 1 
+    train:
+      target: taming.data.webclip.WebClipDataset
+      params:
+        remote: 's3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/train'
+        local: './train_data'
+        batch_size: 24
+    validation:
+      target: taming.data.webclip.WebClipDataset
+      params:
+        remote: 's3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/val'
+        local: './val_data'
+        batch_size: 24
+lightning:
+  trainer:
+    max_epochs: 3
