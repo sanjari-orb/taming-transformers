@@ -169,6 +169,9 @@ class DataModuleFromConfig(pl.LightningDataModule):
                 self.datasets[k] = WrappedDataset(self.datasets[k])
         '''
     def _train_dataloader(self):
+        return DataLoader(self.datasets["train"], batch_size=self.batch_size,
+                          num_workers=self.num_workers, collate_fn=custom_collate)
+
         return DataLoader(
             WebClipDataset(
                 local='./train_data',
@@ -180,6 +183,8 @@ class DataModuleFromConfig(pl.LightningDataModule):
         )
 
     def _val_dataloader(self):
+        return DataLoader(self.datasets["validation"], batch_size=self.batch_size,
+                          num_workers=self.num_workers, collate_fn=custom_collate)
         return DataLoader(
             WebClipDataset(
                 local='./val_data',
@@ -428,8 +433,10 @@ if __name__ == "__main__":
         nowname = now+name+opt.postfix
         logdir = os.path.join("logs", nowname)
 
-    ckptdir = os.path.join(logdir, "checkpoints")
-    cfgdir = os.path.join(logdir, "configs")
+    ckptlogdir= '/orby-llm/full-finetuning/temp2/'
+    #ckptlogdir= logdir
+    ckptdir = os.path.join(ckptlogdir, "checkpoints")
+    cfgdir = os.path.join(ckptlogdir, "configs")
     seed_everything(opt.seed)
 
     try:
@@ -485,7 +492,7 @@ if __name__ == "__main__":
                 }
             },
         }
-        default_logger_cfg = default_logger_cfgs["wandb"]
+        default_logger_cfg = default_logger_cfgs["testtube"]
         if "logger" in lightning_config:
             logger_cfg = lightning_config.logger
         else:
@@ -495,10 +502,11 @@ if __name__ == "__main__":
 
         # modelcheckpoint - use TrainResult/EvalResult(checkpoint_on=metric) to
         # specify which metric is used to determine best models
+        '''
         default_modelckpt_cfg = {
             "target": "pytorch_lightning.callbacks.ModelCheckpoint",
             "params": {
-                "dirpath": ckptdir,
+                "dirpath": ckptlogdir,
                 "filename": "{epoch:06}",
                 "verbose": True,
                 "save_last": True,
@@ -513,11 +521,21 @@ if __name__ == "__main__":
             modelckpt_cfg = lightning_config.modelcheckpoint
         else:
             modelckpt_cfg = OmegaConf.create()
-        modelckpt_cfg = OmegaConf.merge(default_modelckpt_cfg, modelckpt_cfg)
+        #modelckpt_cfg = OmegaConf.merge(default_modelckpt_cfg, modelckpt_cfg)
         #trainer_kwargs["checkpoint_callback"] = instantiate_from_config(modelckpt_cfg)
+        '''
 
         # add callback which sets up log directory
         default_callbacks_cfg = {
+            "checkpoint_callback": {
+		"target": "pytorch_lightning.callbacks.ModelCheckpoint",
+		"params": {
+		    "dirpath": ckptlogdir,
+		    "filename": "{epoch:06}",
+		    "verbose": True,
+		    "save_last": True,
+                }
+            },
             "setup_callback": {
                 "target": "main.SetupCallback",
                 "params": {
@@ -554,7 +572,6 @@ if __name__ == "__main__":
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
         trainer_kwargs["strategy"]=DDPStrategy(find_unused_parameters=True)
-        trainer_kwargs["default_root_dir"] = "gs://orby-llm/full-finetuning/temp/"
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
 
         # data
@@ -586,7 +603,7 @@ if __name__ == "__main__":
             # run all checkpoint hooks
             if trainer.global_rank == 0:
                 print("Summoning checkpoint.")
-                ckpt_path = os.path.join(ckptdir, "last.ckpt")
+                ckpt_path = "s3:/" + os.path.join(ckptdir, "last.ckpt")
                 trainer.save_checkpoint(ckpt_path)
 
         def divein(*args, **kwargs):
@@ -601,6 +618,7 @@ if __name__ == "__main__":
         if opt.train:
             try:
                 trainer.fit(model, data)
+                melk()
             except Exception:
                 melk()
                 raise

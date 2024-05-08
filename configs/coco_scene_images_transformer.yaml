@@ -51,7 +51,7 @@ data:
     train:
       target: taming.data.annotated_objects_coco.AnnotatedObjectsCoco
       params:
-        data_path: data/coco_dataset_complete  # substitute with path to full dataset
+        data_path: data/coco_annotations_100  # substitute with path to full dataset
         split: train
         keys: [image, objects_bbox, file_name, annotations]
         no_tokens: 8192
@@ -66,7 +66,7 @@ data:
     validation:
       target: taming.data.annotated_objects_coco.AnnotatedObjectsCoco
       params:
-        data_path: data/coco_dataset_complete  # substitute with path to full dataset
+        data_path: data/coco_annotations_100  # substitute with path to full dataset
         split: validation
         keys: [image, objects_bbox, file_name, annotations]
         no_tokens: 8192
@@ -78,3 +78,7 @@ data:
         random_flip: false
         use_group_parameter: true
         encode_crop: true
+lightning:
+  trainer:
+    max_epochs: 1
+
