@@ -15,6 +15,10 @@ from taming.data.webclip import WebClipDataset
 from taming.data.utils import custom_collate
 import warnings
 warnings.filterwarnings("ignore")
+import os
+if "LOCAL_RANK"  in os.environ:
+    os.environ["RANK"] = str(int(os.environ.get("LOCAL_RANK", 0))+int(os.environ.get("NODE_RANK", 0))*8)
+
 
 def get_obj_from_str(string, reload=False):
     module, cls = string.rsplit(".", 1)
@@ -159,11 +163,12 @@ class DataModuleFromConfig(pl.LightningDataModule):
         self.datasets = dict(
             (k, instantiate_from_config(self.dataset_configs[k]))
             for k in self.dataset_configs)
+        '''
         if self.wrap:
             for k in self.datasets:
                 self.datasets[k] = WrappedDataset(self.datasets[k])
+        '''
     def _train_dataloader(self):
-
         return DataLoader(
             WebClipDataset(
                 local='./train_data',
@@ -171,16 +176,16 @@ class DataModuleFromConfig(pl.LightningDataModule):
                 batch_size=self.batch_size,
             ),
             batch_size=self.batch_size,
-            num_workers=self.num_workers, shuffle=True, collate_fn=custom_collate
+            num_workers=self.num_workers, collate_fn=custom_collate
         )
 
     def _val_dataloader(self):
         return DataLoader(
             WebClipDataset(
-                local='./train_data',
+                local='./val_data',
                 remote='s3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/val', batch_size=self.batch_size),
             batch_size=self.batch_size,
-            num_workers=self.num_workers, shuffle=True, collate_fn=custom_collate
+            num_workers=self.num_workers, collate_fn=custom_collate
         )
 
     def _test_dataloader(self):
@@ -383,6 +388,7 @@ if __name__ == "__main__":
     sys.path.append(os.getcwd())
 
     parser = get_parser()
+
     parser = Trainer.add_argparse_args(parser)
 
     opt, unknown = parser.parse_known_args()
@@ -548,6 +554,7 @@ if __name__ == "__main__":
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
         trainer_kwargs["strategy"]=DDPStrategy(find_unused_parameters=True)
+        trainer_kwargs["default_root_dir"] = "gs://orby-llm/full-finetuning/temp/"
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
 
         # data

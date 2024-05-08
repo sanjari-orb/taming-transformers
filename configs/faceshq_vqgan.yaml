@@ -21,7 +21,7 @@ model:
       params:
         disc_conditional: False
         disc_in_channels: 3
-        disc_start: 300 
+        disc_start: 1000 
         disc_weight: 0.8
         codebook_weight: 1.0
 
@@ -46,4 +46,4 @@ data:
         use_stuffthing: true
 lightning:
   trainer:
-    max_epochs: 1
+    max_epochs: 3

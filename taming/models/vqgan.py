@@ -187,6 +187,7 @@ class VQSegmentationModel(VQModel):
 
     def training_step(self, batch, batch_idx):
         #print("Getting input..")
+        print("batch size ", batch[self.image_key].shape)
         x = self.get_input(batch, self.image_key)
         #print('Calling forward.. ')
         xrec, qloss = self(x)
