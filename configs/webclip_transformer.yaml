@@ -1,0 +1,68 @@
+model:
+  base_learning_rate: 4.5e-06
+  target: taming.models.cond_transformer.Net2NetTransformer
+  params:
+    cond_stage_key: image 
+    transformer_config:
+      target: taming.modules.transformer.mingpt.GPT
+      params:
+        vocab_size: 1024
+        block_size: 512
+        n_layer: 24
+        n_head: 16
+        n_embd: 1024
+    first_stage_config:
+      target: taming.models.vqgan.VQModel
+      params:
+        ckpt_path: /orby-llm/full-finetuning/temp2/last.ckpt
+        embed_dim: 441 
+        n_embed: 1024
+        ddconfig:
+          double_z: false
+          z_channels: 256
+          resolution: 336 
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult:
+          - 1
+          - 1
+          - 2
+          - 2
+          - 4
+          num_res_blocks: 2
+          attn_resolutions:
+          - 16
+          dropout: 0.0
+        lossconfig:
+          target: taming.modules.losses.DummyLoss
+    cond_stage_config:
+      target: taming.modules.misc.coord.CoordStage
+      params:
+        n_embed: 1024
+        down_factor: 16
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 16
+    num_workers: 1
+    train:
+      target: taming.data.webclip.WebClipDataset
+      params:
+        remote: 's3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/train'
+        local: './train_data4'
+        batch_size: 16
+        size: 336
+        crop_size: 336
+    validation:
+      target: taming.data.webclip.WebClipDataset
+      params:
+        remote: 's3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/val'
+        local: './val_data5'
+        batch_size: 16
+        size: 336
+        crop_size: 336
+lightning:
+  trainer:
+    max_epochs: 3
+

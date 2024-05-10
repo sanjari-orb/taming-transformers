@@ -2,12 +2,12 @@ model:
   base_learning_rate: 4.5e-6
   target: taming.models.vqgan.VQModel
   params:
-    embed_dim: 256
+    embed_dim: 441 
     n_embed: 1024
     ddconfig:
       double_z: False
       z_channels: 256
-      resolution: 256
+      resolution: 336 
       in_channels: 3
       out_ch: 3
       ch: 128
@@ -28,20 +28,24 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 24 
+    batch_size: 16 
     num_workers: 1 
     train:
       target: taming.data.webclip.WebClipDataset
       params:
         remote: 's3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/train'
-        local: './train_data'
-        batch_size: 24
+        local: './train_data3'
+        batch_size: 16
+        size: 336
+        crop_size: 336
     validation:
       target: taming.data.webclip.WebClipDataset
       params:
         remote: 's3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/val'
-        local: './val_data'
-        batch_size: 24
+        local: './val_data4'
+        batch_size: 16
+        size: 336
+        crop_size: 336
 lightning:
   trainer:
     max_epochs: 3

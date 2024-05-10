@@ -178,6 +178,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
             dataset = self.datasets["train"]
         return DataLoader(dataset, batch_size=self.batch_size,
                           num_workers=self.num_workers, collate_fn=custom_collate)
+        '''
         return DataLoader(
             WebClipDataset(
                 local='./train_data',
@@ -187,6 +188,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers, collate_fn=custom_collate
         )
+        '''
 
     def _val_dataloader(self):
         conf = self.dataset_configs['validation']
@@ -197,6 +199,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
         return DataLoader(dataset, batch_size=self.batch_size,
                           num_workers=self.num_workers, collate_fn=custom_collate)
 
+        '''
         return DataLoader(
             WebClipDataset(
                 local='./val_data',
@@ -207,6 +210,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
         dataset = instantiate_from_config(self.dataset_configs["validation"])
         return DataLoader(dataset, batch_size=self.batch_size,
                           num_workers=self.num_workers, collate_fn=custom_collate)
+        '''
 
     def _test_dataloader(self):
         return DataLoader(self.datasets["test"], batch_size=self.batch_size,
@@ -448,7 +452,7 @@ if __name__ == "__main__":
         nowname = now+name+opt.postfix
         logdir = os.path.join("logs", nowname)
 
-    ckptlogdir= '/orby-llm/full-finetuning/temp2/'
+    ckptlogdir= '/orby-llm/' + logdir 
     #ckptlogdir= logdir
     ckptdir = os.path.join(ckptlogdir, "checkpoints")
     cfgdir = os.path.join(ckptlogdir, "configs")
@@ -475,6 +479,7 @@ if __name__ == "__main__":
             gpuinfo = trainer_config["gpus"]
             print(f"Running on GPUs {gpuinfo}")
             cpu = False
+        trainer_config['num_nodes'] = 2
         trainer_opt = argparse.Namespace(**trainer_config)
         lightning_config.trainer = trainer_config
 
@@ -507,7 +512,7 @@ if __name__ == "__main__":
                 }
             },
         }
-        default_logger_cfg = default_logger_cfgs["testtube"]
+        default_logger_cfg = default_logger_cfgs["wandb"]
         if "logger" in lightning_config:
             logger_cfg = lightning_config.logger
         else:
