@@ -3,6 +3,7 @@ from omegaconf import OmegaConf
 import numpy as np
 from PIL import Image
 import torch
+import wandb
 import torchvision
 from torch.utils.data import random_split, DataLoader, Dataset
 import pytorch_lightning as pl
@@ -275,8 +276,6 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def _wandb(self, pl_module, images, batch_idx, split):
-        return 
-        raise ValueError("No way wandb")
         grids = dict()
         for k in images:
             grid = torchvision.utils.make_grid(images[k])
@@ -553,6 +552,7 @@ if __name__ == "__main__":
 		    "dirpath": ckptlogdir,
 		    "filename": "{epoch:06}",
 		    "verbose": True,
+                    "save_on_train_epoch_end": True,
 		    "save_last": True,
                 }
             },

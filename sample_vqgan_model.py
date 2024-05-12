@@ -11,6 +11,13 @@ import urllib.parse
 import argparse
 import torch
 from google.cloud import storage
+from taming.models.vqgan import VQModel
+from omegaconf import OmegaConf
+import glob
+import numpy as np
+from taming.data.utils import custom_collate
+import shutil
+
 
 GCS_UPLOAD_TIMEOUT_SECS = 300
 
@@ -104,22 +111,17 @@ def get_parser(**parser_kwargs):
         default=1,
         help="batch size to use for forward pass"
     )
-from taming.models.vqgan import VQModel
-from omegaconf import OmegaConf
-import glob
-import numpy as np
-from taming.data.utils import custom_collate
-import shutil
+    return parser
 
 def batch(image, processor):
     if not image.mode == "RGB":
         image = image.convert("RGB")
-        image = np.array(image).astype(np.uint8)
-        processed = processor(image=image)
-        return {
-            "image": (processed["image"]/127.5 - 1.0).astype(np.float32)
-        
-        }
+    image = np.array(image).astype(np.uint8)
+    processed = processor(image=image)
+    return {
+        "image": (processed["image"]/127.5 - 1.0).astype(np.float32)
+    
+    }
 def sample(model, batch):
     x = model.get_input(batch, 'image')
     xrec, _ = model(x)
@@ -146,10 +148,11 @@ def decode_gcs_uri(uri: str) -> Tuple[str, str]:
     return bucket_name, object_path
 
 
-if __name__ == 'main':
+if __name__=="__main__": 
     parser = get_parser()
     args, unknown = parser.parse_known_args()
     ckpt_path = args.model
+    print('Found args: ', args, unknown)
     state_dict = torch.load(ckpt_path, map_location='cpu')['state_dict']
 
     config_path = args.config_path
@@ -161,19 +164,28 @@ if __name__ == 'main':
     input_dir = args.input_dir
     output_dir = '/tmp/webclip_images/'
     images_fns = glob.glob(input_dir + "/*.png")
+    print("Found image files:  ", images_fns)
     rescaler = albumentations.SmallestMaxSize(max_size=336)
     cropper = albumentations.RandomCrop(
       height=336, 
       width=336)
-    preprocessor = albumentations.Compose(
-      [rescaler, cropper])
+    preprocessor = albumentations.Compose([rescaler, cropper])
+    '''
+    size=336
+    rescaler = albumentations.Resize(height=size, width=size)
+    preprocessor = albumentations.Compose([rescaler])
+    '''
     for fn in images_fns:
         img_num = fn.split('/')[-1]
         pil_image = Image.open(fn)
+        print("image size: ", pil_image.size)
         inp = batch(pil_image, processor=preprocessor)
         x, xrec = sample(model, custom_collate([inp]))
-        save_image(xrec, output_dir + img_num)
+        
+        save_image(x[0], output_dir + img_num + '.original.png')
+        
+        save_image(xrec[0], output_dir + img_num)
 
-    shutil.make_archive('tmp.zip', 'zip', output_dir)
+    shutil.make_archive('zipped_imgs', 'zip', output_dir)
     bucket, object = decode_gcs_uri(args.output_gcs_path)
-    upload_blob(bucket, object, 'tmp.zip')
+    upload_blob(bucket, object, 'zipped_imgs.zip')
