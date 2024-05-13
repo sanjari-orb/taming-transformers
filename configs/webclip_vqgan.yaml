@@ -1,5 +1,5 @@
 model:
-  base_learning_rate: 4.5e-4
+  base_learning_rate: 1.0e-5
   target: taming.models.vqgan.VQModel
   params:
     embed_dim: 256
@@ -34,7 +34,7 @@ data:
       target: taming.data.webclip.WebClipDataset
       params:
         remote: 's3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/train'
-        local: './train_data13'
+        local: './train_data15'
         batch_size: 16
         size: 336
         crop_size: 336
@@ -43,7 +43,7 @@ data:
       target: taming.data.webclip.WebClipDataset
       params:
         remote: 's3://orby-osu-va/datasets/vqgan/streaming/error_free_html_clean_img_jpeg_336_1m/val'
-        local: './val_data13'
+        local: './val_data15'
         batch_size: 16
         size: 336
         crop_size: 336
