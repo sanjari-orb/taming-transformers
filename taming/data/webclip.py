@@ -160,4 +160,4 @@ class WebClipDataset(StreamingDataset):
         return {
             "image": (processed["image"]/127.5 - 1.0).astype(np.float32)
         }
-    
+
